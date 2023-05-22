@@ -1,5 +1,5 @@
 export GITHUB_USER="stiliyantonev"; # github.sh
-export GITHUB_TOKEN="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"; # github.sh
+export GITHUB_TOKEN="TOKEN"; # github.sh
 export GITHUB_ORGANIZATION="belugait"; # github.sh
 
 get_github_repo () {
