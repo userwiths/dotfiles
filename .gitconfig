@@ -1,0 +1,12 @@
+[user]
+	email = s.tonev@beluga.software
+	name = Stiliyan Tonev
+[file]
+	mode = false
+[core]
+	Mode = false
+	fileMode = false
+	autocrlf = true
+	editor = vim
+[pull]
+	rebase = false
