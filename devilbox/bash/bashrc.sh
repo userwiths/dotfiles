@@ -1,54 +1,39 @@
 #!/usr/bin/env bash
-
-export MYSQL_SERVER="172.16.238.12"; # mysql.sh
-export ELASTIC_SERVER="172.16.238.26"; # elastic.sh
-export MYSQL_USER="root"; # mysql.sh
-export MYSQL_PASSWORD="root"; # mysql.sh
-export ADMIN_USER="NAME TO USE FOR ADMIN"; 
-export ADMIN_EMAIL="EMAIL TO USE FOR ADMIN";
-export ADMIN_PASSWORD="PASSWORD FOR ADMIN";
+export ADMIN_USER="s.tonev"; 
+export ADMIN_EMAIL="s.tonev@beluga.software";
+export ADMIN_PASSWORD="Qwerty_2_Qwerty";
 export BACKEND_DEPLOY_LANGUAGES="en_US";
 export FRONTEND_DEPLOY_LANGUAGES="bg_BG en_US";
 export DEPLOY_JOBS_COUNT=3;
-export GITHUB_USER="YOUR GITHUB USERNAME"; # github.sh
-export GITHUB_TOKEN="YOUR GITHUB TOKE"; # github.sh
-export GITHUB_ORGANIZATION="YOUR GITHUB ORGANIZATION"; # github.sh
+export APPLIED_ACCESS_CODE="777";
 export ROOT_DIR="/shared/httpd";
 export SYM_LINK_NAME="htdocs";
 
 # Affects the symlink generation.
 export USE_NGINX=1;
 
-shopt -s autocd
-shopt -s cdspell
-
-alias echo="echo -e";
-alias mkdir='mkdir -p';
-alias grep='grep --color';
-alias magento_access='chmod -R 777 {var,generated,pub,vendor,app/etc}';
-alias cache='magento c:c; magento c:f; magento_access';
-alias rebuild='magento_rebuild';
-alias update='composer_exec update && rebuild';
-alias mysql="mysql -u$MYSQL_USER -p$MYSQL_PASSWORD -h $MYSQL_SERVER ";
-alias mysqldump="mysqldump -u$MYSQL_USER -p$MYSQL_PASSWORD -h $MYSQL_SERVER ";
-alias magento_update='update';
-alias magento_cache='cache';
-alias magento_disable_cache='magento cache:disable';
 alias magento_admin_url='magento info:adminuri';
 alias artisan='php artisan ';
-alias magento="php bin/magento ";
-alias magento_disable_sign="magento config:set dev/static/sign 0";
 
-cpf () {
-	src="$1";
-	dst="$2";
-	if [ -z "$dst" ]; then
-		mkdir -p "$(get_only_path "$dst")";
-	fi;
-	cp "$src" "$dst";
+# Functions can be called from host using `docker-compose exec` aliases can't :(.
+magento(){
+	php bin/magento "$@";
 }
-get_only_path () {
-	echo "$1" | awk -F'/' -v OFS='/' '{$NF=""}1';
+magento_access(){
+	chmod -R $APPLIED_ACCESS_CODE {var,generated,pub,app/etc}
+}
+magento_disable_sign() {
+	magento config:set dev/static/sign 0;
+}
+cache(){
+	magento c:c; magento c:f; magento_access
+}
+magento_cache(){
+	magento c:c; magento c:f; magento_access
+}
+magento_update(){
+	composer_exec update;
+	magento_rebuild;
 }
 magento_add_less_to_module () {
 	if [ -z "$1" ]; then
@@ -113,34 +98,6 @@ project_update () {
     fi;
 }
 
-composer_install () {
-	php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');";
-	php composer-setup.php;
-	php -r "unlink('composer-setup.php');";
-}
-
-composer_exec() {
-	if [ ! -f "composer.json" ]; then
-		echo "No composer.json file found.";
-		return 1;
-	fi;
-
-	if [ "$1" != "install" ]; then
-		if [ "$1" != "update" ]; then
-			echo "Unrecognized argument $1.";
-			echo "Expecting [install] or [update]";
-			return 1;
-		fi;
-	fi;
-	if ! composer-2 $1; then
-		echo "ComposerV2 install failed. Trying with ComposerV1";
-		if ! composer-1 $1; then
-			echo "Both composer versions failed. Returning to ComposerV2";
-			return 1;
-		fi;
-	fi;
-}
-
 composer_verify_repos () {
 	json_data="$(composer config repositories --no-plugins --no-ansi)";
 	artifacts="$(echo "$json_data" | jq -c "to_entries | .[] | select(.value.type==\"artifact\")")";
@@ -181,7 +138,7 @@ magento_whitelist () {
 magento_db_status_fix () {
 	# Clear files before rebuilding.
 	rm -fr generated/code/*;
-	chmod -R 777 generated;
+	chmod -R $APPLIED_ACCESS_CODE generated;
 	magento setup:db:status --no-ansi 2> /dev/null;
 	# https://devdocs.magento.com/guides/v2.3/install-gde/install/cli/install-cli-subcommands-db-status.html
 	case "$?" in
@@ -223,8 +180,8 @@ magento_rebuild_styleless () {
 }
 
 magento_set_adminurl () {
-	if [ ! -z "$2" ]; then
-		magento config:set admin/url/custom "$2";
+	if [ ! -z "$(magento config:set admin/url/custom)" ]; then
+		magento config:set admin/url/custom "$1";
 	fi;
 	magento setup:config:set --backend-frontname "$1" -n;
 }
@@ -421,7 +378,7 @@ magento_install() {
 		return 1;
 	fi;
 	magento_rebuild_styleless;
-	magento_disable_cache;
+	magento cache:disable;
 	magento_disable_sign;
 	# Enable modules that DO NOT contain Magento in them.
 	magento module:enable $(magento module:status | grep  -v "Magento\|List of\|None\|TwoFactorAuth\|Magento_AdminAdobeImsTwoFactorAuth");
@@ -493,66 +450,16 @@ get_single_admin_url () {
 		printf "%10s | %10s | %20s\n" "$project" "http://$project.loc/" "$(get_admin_url "$path"/"$project" "$project")";
 	fi;
 }
-get_github_repo () {
-	part="$(get_github_repo_url "$1" | awk -F '//' '{print $2}')";
-	echo "https://$GITHUB_USER:$GITHUB_TOKEN@$part";
-}
-# Get repo link containing the argument, choose the shortest link.
-get_github_repo_url () {
-	curl -u $GITHUB_USER:$GITHUB_TOKEN "https://api.github.com/orgs/$GITHUB_ORGANIZATION/repos?per_page=80" |\
-	grep clone_url |\
-	grep "$1" |\
-	awk -F '"' '{print $4}' |\
-	sort -n |\
-	head -n 1;
-}
-magento_get_path () {
-	module="$1";
-	if [ ! -f "app/code/$module/etc/adminhtml/routes.xml" ]; then
-		echo "No Admin Routes.";
-	fi;
-	if [ ! -f "app/code/$module/etc/frontend/routes.xml" ]; then
-		echo "No Frontend Routes.";
-	fi;
-	find app/code/$module -type f -name routes.xml -exec bash -c "cat {} | xq '.config.router.route | flatten | .[1]'" \;
-}
-
-magento_get_all_paths () {
-	find app/code -type f -name routes.xml -exec printf "%s    :   " {} \; -exec bash -c "cat {} | xq '.config.router.route | flatten | .[1]'" \; -exec echo "" \;
-}
-
-generate_search_controller () {
-	return;	
-}
-
-magento_info () {
-	url="http://dice.loc/admin_1e7b2b/beluga_preset/preset/index/key/8912d89095641a627a7304ef97d1a0540232dd5b9fbe13f0afafcbbad79bb3bf/";
-	project="$(echo "$url" | awk -F '/' '{print $3}' | awk -F '.' '{print $1}')";
-	area="frontend";
-	if [ "$(echo "$url" | awk -F '/' '{print $4}' | awk -F '_' '{print $1}')" == 'admin' ]; then
-		area="adminhtml";
-		module="$(echo "$url" | awk -F '/' '{print $5}')";
-		sub_folder="$(echo "$url" | awk -F '/' '{print $6}')";
-		endpoint="$(echo "$url" | awk -F '/' '{print $7}')";
-
-		module_folder="$(grep -Rl "$module" /shared/httpd/$project/$project/{app/code/,vendor/magento/module-*} | grep routes | awk -F '/' '{print "/" $2 "/" $3 "/" $4 "/" $5 "/" $6 "/" $7 "/" $8 "/" $9}')";
-		if [ "$area" == "adminhtml" ]; then
-			endpoint_folder="$(find "$module_folder/Controller/Adminhtml" -iname "$sub_folder")";
-		else
-			endpoint_folder="$(find "$module_folder/Controller/" -iname "$sub_folder")";
-		fi;
-		endpoint_file="$(find "$endpoint_folder" -iname "$endpoint.php")";
-	fi;
-	echo "Project: $project";
-	echo "Module Path: $module_folder";
-	echo "Endpoint File: $endpoint_file";
-	[ -f "$module_folder/view/$area/layout/${module}_${sub_folder}_${endpoint}.xml" ] && echo "Used Layout: $module_folder/view/$area/layout/${module}_${sub_folder}_${endpoint}.xml";
-}
 
 magento_cron_access () {
+	if [ -z "$1" ]; then
+		echo "No project specified.";
+		return;
+	fi;
+	project="$1";
 	crontab -l  > /tmp/crontab.file;
 	# crontab uses sh instead of bash, no `{var,pub...}` and chmod, use the long form.
-	command="/usr/bin/chmod -R 777 /var/www/agrina/var && /usr/bin/chmod -R 777 /var/www/agrina/generated && chmod -R 777 /var/www/agrina/pub && chmod -R 777 /var/www/agrina/vendor";
+	command="/usr/bin/chmod -R $APPLIED_ACCESS_CODE $ROOT_DIR/$project/$project/var && /usr/bin/chmod -R $APPLIED_ACCESS_CODE $ROOT_DIR/$project/$project/generated && chmod -R $APPLIED_ACCESS_CODE $ROOT_DIR/$project/$project/pub";
 	echo "* * * * * $command" >> /tmp/crontab.file;
 	crontab /tmp/crontab.file;
 	rm /tmp/crontab.file;
@@ -572,21 +479,10 @@ magento_minify_enable () {
 	magento config:set dev/css/merge_css_files 0
 	magento config:set dev/css/minify_files 0
 }
-
-elastic_watermark_disable(){
-	curl -XPUT "$ELASTIC_SERVER:9200/_cluster/settings" -H "Content-Type: application/json" -d '{
-		"transient" : {
-			"cluster.routing.allocation.disk.threshold_enabled" : false
-		}
-	}' | jq;
-}
-
-elastic_delete_all () {
-	curl -XDELETE "$ELASTIC_SERVER:9200/_all" | jq;
-}
-
-elastic_allow_delete() {
-	curl -XPUT -H "Content-Type: application/json" http://$ELASTIC_SERVER:9200/_all/_settings -d '{"index.blocks.read_only_allow_delete": null}' | jq;
+magento_clear_residue(){
+	find "$ROOT_DIR" -maxdepth 5 -path "*/var/log/*" -name "*.log" -type f -exec bash -c "echo > {}" \;
+	find "$ROOT_DIR" -maxdepth 5 -path "*/var/cache/*" -type d -exec bash -c "echo \"Removing {}\"; [ -d {} ] && rm -fr {}" \;
+	find "$ROOT_DIR" -name "cache" -type d -exec bash -c "chmod -R $APPLIED_ACCESS_CODE {}" \;
 }
 
 export -f magento_install;
@@ -598,11 +494,9 @@ export -f get_admin_url;
 export -f deploy_file;
 
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-echo "!!!!!				REMOVING LAST USED LOGS AND CACHE, IN ORDER TO FREE UP SPACE					  !!!!!";
+echo "!!!!!				REMOVING LAST USED LOGS AND CACHE, IN ORDER TO FREE UP SPACE                     !!!!!";
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-find "$ROOT_DIR" -path "*var/log/*" -name "*.log" -type f -exec bash -c "echo > {}" \;
-find "$ROOT_DIR" -path "*var/cache/*" -name "*" -type d -exec bash -c "echo \"Removing {}\"; [ -d {} ] && rm -fr {}" \;
-find "$ROOT_DIR" -name "cache" -type d -exec bash -c "chmod -R 777 {}" \;
+magento_clear_residue &
 
 echo "=========================================================================================================";
 echo "Greetings, this shell has a few shortcuts related to Magento 2 development.";
