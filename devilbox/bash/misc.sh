@@ -1,10 +1,17 @@
 export HISTCONTROL=ignoredups:erasedups
+export HISTIGNORE="ls:bg:fg:exit:reset:clear:cd"
+export VISUAL=vim;
+export EDITOR=vim;
+
 shopt -s autocd
 shopt -s cdspell
+set -o noclobber
 
 alias echo="echo -e";
 alias mkdir='mkdir -p';
 alias grep='grep --color';
+alias du="du -sh ";
+alias wget="wget -c ";
 
 commit_msg () {
 	message="AUTO-GENERATED:";
@@ -112,3 +119,14 @@ up () {
     echo "Couldn't go up $limit dirs.";
   fi
 }
+
+get_bios_system () {
+  [ -d /sys/firmware/efi ] && echo "UEFI" || echo "BIOS";
+}
+
+current_dir_name() {
+	echo "${PWD##*/}";
+}
+
+#https://docs.fedoraproject.org/en-US/quick-docs/bootloading-with-grub2/
+#https://wiki.archlinux.org/title/GRUB

@@ -9,6 +9,7 @@
 
 PS1='[\u@\h \W]\$ '
 
+. /usr/share/doc/pkgfile/command-not-found.bash;
 parse_git_branch() {
 	git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
 }
@@ -30,16 +31,10 @@ esac
 # Currently (2023-03-14) it is broken for the 6.2.2 kernel due to a deprecated call.
 #eval "$(mcfly init bash)"
 
-export HISTIGNORE="ls:bg:fg:exit:reset:clear:cd"
-export HISTCONTROL=ignoredups:erasedups
 export PATH=$PATH:/root/Downloads/VSCode/bin;
-export VISUAL=vim;
-export EDITOR=vim;
+export BROWSER=firefox;
 export GCM_CREDENTIAL_STORE='plaintext'
 
-
-shopt -s autocd # change to named directory
-shopt -s cdspell # autocorrects cd misspellings
 shopt -s cmdhist # save multi-line commands in history as single line
 shopt -s dotglob
 shopt -s histappend # do not overwrite history
@@ -52,17 +47,9 @@ bind "set completion-ignore-case on"
 
 alias make="rm *.o; make";
 alias logs='lnav var/log/*';
-alias mkdir='mkdir -p';
-alias grep='grep --color';
 alias hosts='vim /etc/hosts';
 alias devilbox='cd ~/devilbox;docker-compose stop; docker-compose up httpd mysql php php81 elasticsearch';
 alias gtop='LANG=en_US.utf8 TERM=xterm-256color gtop';
-alias du="du -sh ";
-alias dc="docker-compose";
-alias dcr="docker-compose restart";
-alias dcs="docker-compose stop";
-alias dcu="docker-compose up ";
-alias dce="docker-compose exec ";
 
 commit_msg () {
 	message="AUTO-GENERATED:";
@@ -263,7 +250,8 @@ has_tag () {
 	xmlstarlet sel -t -m "//*[name()='$tag']" -f -n "$file";# | wc -l;
 }
 
-source ~/devilbox/bash/misc.sh;
-source ~/devilbox/bash/elastic.sh;
-source ~/devilbox/bash/mysql.sh;
-source ~/devilbox/bash/dotnet.sh;
+. ~/devilbox/bash/docker.sh;
+. ~/devilbox/bash/misc.sh;
+. ~/devilbox/bash/elastic.sh;
+. ~/devilbox/bash/mysql.sh;
+. ~/devilbox/bash/dotnet.sh;

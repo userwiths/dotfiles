@@ -16,6 +16,13 @@ get_github_repo_url () {
 	head -n 1;
 }
 
+git_ignore_chmod () {
+	git config core.fileMode false;
+}
+
 if [ -f "/usr/share/bash-completion/completions/git" ];then
 	source /usr/share/bash-completion/completions/git;
 fi;
+
+export -f get_github_repo;
+export -f git_ignore_chmod;

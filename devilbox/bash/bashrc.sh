@@ -9,6 +9,13 @@ export APPLIED_ACCESS_CODE="777";
 export ROOT_DIR="/shared/httpd";
 export SYM_LINK_NAME="htdocs";
 
+. /etc/bashrc-devilbox.d/misc.sh;
+. /etc/bashrc-devilbox.d/mysql.sh;
+. /etc/bashrc-devilbox.d/elastic.sh;
+. /etc/bashrc-devilbox.d/github.sh;
+. /etc/bashrc-devilbox.d/jq.sh;
+. /etc/bashrc-devilbox.d/composer.sh;
+
 # Affects the symlink generation.
 export USE_NGINX=1;
 
@@ -55,12 +62,6 @@ magento_add_less_to_module () {
 	echo "Created : $1/view/adminhtml/web/css/source/_module.less";
 }
 
-git_ignore_chmod () {
-	git config core.fileMode false;
-}
-current_dir_name() {
-	echo "${PWD##*/}";
-}
 project_install () {
     if [ -f "composer.json" ]; then
         composer_exec install;
@@ -363,7 +364,7 @@ magento_install() {
 	# Sleep, cause its too quick to notice the changes sometimes.
 	sleep 5;
 	# Disable modules that DO NOT contain Magento in them.
-	magento module:disable $(magento module:status | grep -v "Magento\|List of\|None") Magento_AdminAdobeImsTwoFactorAuth Magento_TwoFactorAuth;
+	magento module:disable $(magento module:status | grep -v "Magento\|List of\|None") Magento_TwoFactorAuth;
 
 	# Install project
 	if ! magento setup:install \
@@ -381,7 +382,7 @@ magento_install() {
 	magento cache:disable;
 	magento_disable_sign;
 	# Enable modules that DO NOT contain Magento in them.
-	magento module:enable $(magento module:status | grep  -v "Magento\|List of\|None\|TwoFactorAuth\|Magento_AdminAdobeImsTwoFactorAuth");
+	magento module:enable $(magento module:status | grep  -v "Magento\|List of\|None\|TwoFactorAuth");
 	magento_rebuild;
 
 	# devilbox specific.
@@ -411,6 +412,7 @@ magento_restore () {
 	fi;
 	address="http://$database.loc";
 	sed -i "s/COLLATE=utf8mb4_0900_ai_ci//g" "$restore_file";
+	mysql -e "CREATE DATABASE IF NOT EXISTS $database";
 	mysql "$database" < "$restore_file";
 	mysql "$database" -e "update core_config_data set value = '$ELASTIC_SERVER' where path like '%elastic%server_host%';";
 	mysql "$database" -e "update core_config_data set value = '$address/' where path like '%base_url';";
@@ -459,7 +461,7 @@ magento_cron_access () {
 	project="$1";
 	crontab -l  > /tmp/crontab.file;
 	# crontab uses sh instead of bash, no `{var,pub...}` and chmod, use the long form.
-	command="/usr/bin/chmod -R $APPLIED_ACCESS_CODE $ROOT_DIR/$project/$project/var && /usr/bin/chmod -R $APPLIED_ACCESS_CODE $ROOT_DIR/$project/$project/generated && chmod -R $APPLIED_ACCESS_CODE $ROOT_DIR/$project/$project/pub";
+	command="/usr/bin/chmod -R $APPLIED_ACCESS_CODE $ROOT_DIR/$project/$project/var && /usr/bin/chmod -R $APPLIED_ACCESS_CODE $ROOT_DIR/$project/$project/generated";
 	echo "* * * * * $command" >> /tmp/crontab.file;
 	crontab /tmp/crontab.file;
 	rm /tmp/crontab.file;
@@ -473,16 +475,36 @@ magento_minify_disable () {
 	magento config:set dev/css/minify_files 0
 }
 magento_minify_enable () {
-	magento config:set dev/js/merge_files 0
-	magento config:set dev/js/enable_js_bundling 0
-	magento config:set dev/js/minify_files 0
-	magento config:set dev/css/merge_css_files 0
-	magento config:set dev/css/minify_files 0
+	magento config:set dev/js/merge_files 1
+	magento config:set dev/js/enable_js_bundling 1
+	magento config:set dev/js/minify_files 1
+	magento config:set dev/css/merge_css_files 1
+	magento config:set dev/css/minify_files 1
 }
 magento_clear_residue(){
 	find "$ROOT_DIR" -maxdepth 5 -path "*/var/log/*" -name "*.log" -type f -exec bash -c "echo > {}" \;
 	find "$ROOT_DIR" -maxdepth 5 -path "*/var/cache/*" -type d -exec bash -c "echo \"Removing {}\"; [ -d {} ] && rm -fr {}" \;
 	find "$ROOT_DIR" -name "cache" -type d -exec bash -c "chmod -R $APPLIED_ACCESS_CODE {}" \;
+	find "$ROOT_DIR" -name ".git" -type d -exec bash -c "cd {}; cd ../; git_ignore_chmod;" \;
+}
+magento_only_default_values(){
+	if [ -z "$1" ]; then
+		database="$(current_dir_name)";
+	else
+		database="$1";
+	fi;
+
+	echo "Doing backup before clearing.";
+	magento_dump "$database";
+	echo "Dumped in: dump.$database.sql";
+	echo "Clearing...";
+	mysql "$database" -e "delete from catalog_product_entity_text where store_id != 0;";
+	mysql "$database" -e "delete from catalog_product_entity_decimal where store_id != 0;";
+	mysql "$database" -e "delete from catalog_product_entity_int where store_id != 0;";
+	mysql "$database" -e "delete from catalog_product_entity_varchar where store_id != 0;";
+	mysql "$database" -e "delete from catalog_product_entity_datetime where store_id != 0;";
+	mysql "$database" -e "delete from catalog_product_entity_media_gallery_value where store_id != 0;";
+	echo "Done.";
 }
 
 export -f magento_install;
