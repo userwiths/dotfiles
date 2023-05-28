@@ -8,5 +8,7 @@
 	fileMode = false
 	autocrlf = true
 	editor = vim
+	ignoreCase = true
+	checkStat = "minimal"
 [pull]
 	rebase = false
