@@ -20,6 +20,12 @@ git_ignore_chmod () {
 	git config core.fileMode false;
 }
 
+just_commit () {
+	message="AUTO-GENERATED:";
+	message="$message $(curl --silent 'https://whatthecommit.com/index.txt')";
+	git commit -m "$message";
+}
+
 if [ -f "/usr/share/bash-completion/completions/git" ];then
 	source /usr/share/bash-completion/completions/git;
 fi;

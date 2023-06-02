@@ -9,7 +9,7 @@
 
 PS1='[\u@\h \W]\$ '
 
-. /usr/share/doc/pkgfile/command-not-found.bash;
+#. /usr/share/doc/pkgfile/command-not-found.bash;
 parse_git_branch() {
 	git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
 }
@@ -51,11 +51,7 @@ alias hosts='vim /etc/hosts';
 alias devilbox='cd ~/devilbox;docker-compose stop; docker-compose up httpd mysql php php81 elasticsearch';
 alias gtop='LANG=en_US.utf8 TERM=xterm-256color gtop';
 
-commit_msg () {
-	message="AUTO-GENERATED:";
-	message="$message $(curl --silent 'https://whatthecommit.com/index.txt')";
-	git commit -m "$message";
-}
+
 # Bigger screen is left from the smaller one in my setup. Change --right-of to --left-of if its the oposite for you.
 alias hdmi='xrandr --output eDP-1 --auto --output HDMI-1-0 --auto ; xrandr --output eDP-1 --right-of HDMI-1-0';
 alias vscode="code --no-sandbox --user-data-dir ~/.vscode-stable/";

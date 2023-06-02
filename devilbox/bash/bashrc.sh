@@ -507,6 +507,11 @@ magento_only_default_values(){
 	echo "Done.";
 }
 
+magento_cli(){
+	echo "error_reporting(E_ALL);ini_set('display_errors', 1);use Magento\Framework\App\Bootstrap;require __DIR__ . '/app/bootstrap.php';\$bootstrap = Bootstrap::create(BP, \$_SERVER);\$objectManager = \$bootstrap->getObjectManager();\$obj=\$objectManager;\$state = \$obj->get(Magento\Framework\App\State::class);\$state->setAreaCode('adminhtml');" > temp.php
+	php -a temp.php;
+}
+
 export -f magento_install;
 export -f magento_rebuild;
 export -f get_single_admin_url;
